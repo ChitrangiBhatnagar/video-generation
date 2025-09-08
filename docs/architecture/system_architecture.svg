@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="800" viewBox="0 0 1000 800">
+  <!-- Background -->
+  <rect width="1000" height="800" fill="#f8f9fa" />
+  
+  <!-- Title -->
+  <text x="500" y="40" font-family="Arial" font-size="24" font-weight="bold" text-anchor="middle" fill="#333">PIB-VideoGen System Architecture</text>
+  
+  <!-- Input Section -->
+  <rect x="50" y="100" width="200" height="100" rx="10" ry="10" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" />
+  <text x="150" y="130" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#1565c0">Input</text>
+  <text x="150" y="155" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Text Scripts (≤100 words)</text>
+  <text x="150" y="180" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Images (≤8 inputs)</text>
+  
+  <!-- Preprocessing Module -->
+  <rect x="50" y="250" width="200" height="120" rx="10" ry="10" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" />
+  <text x="150" y="280" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#2e7d32">Preprocessing</text>
+  <text x="150" y="305" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Text: Summarize, Language</text>
+  <text x="150" y="330" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Images: Crop, Resize,</text>
+  <text x="150" y="355" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Super-resolve</text>
+  
+  <!-- Fact Checking Module -->
+  <rect x="50" y="420" width="200" height="120" rx="10" ry="10" fill="#fff3e0" stroke="#e65100" stroke-width="2" />
+  <text x="150" y="450" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#e65100">Fact Checking</text>
+  <text x="150" y="475" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Extract Claims</text>
+  <text x="150" y="500" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Query PIB Database</text>
+  <text x="150" y="525" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Flag Unverified Claims</text>
+  
+  <!-- Noise Decomposition Module -->
+  <rect x="300" y="250" width="200" height="120" rx="10" ry="10" fill="#e0f7fa" stroke="#006064" stroke-width="2" />
+  <text x="400" y="280" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#006064">Noise Decomposition</text>
+  <text x="400" y="305" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Base Noise (λ=0.7)</text>
+  <text x="400" y="330" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Residual Noise (λ=0.3)</text>
+  <text x="400" y="355" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">VideoFusion (CVPR 2023)</text>
+  
+  <!-- Latent Synthesis Module -->
+  <rect x="550" y="250" width="200" height="120" rx="10" ry="10" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="2" />
+  <text x="650" y="280" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#6a1b9a">Latent Synthesis</text>
+  <text x="650" y="305" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Fuse Text Embeddings</text>
+  <text x="650" y="330" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Align-Your-Latents</text>
+  <text x="650" y="355" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">16-frame Latent Video</text>
+  
+  <!-- Emergency Zero-Shot Module -->
+  <rect x="300" y="420" width="200" height="120" rx="10" ry="10" fill="#ffebee" stroke="#b71c1c" stroke-width="2" />
+  <text x="400" y="450" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#b71c1c">Emergency Zero-Shot</text>
+  <text x="400" y="475" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Bypass Training</text>
+  <text x="400" y="500" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Text2Video-Zero</text>
+  <text x="400" y="525" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">< 60s Turnaround</text>
+  
+  <!-- Super-Resolution Module -->
+  <rect x="550" y="420" width="200" height="120" rx="10" ry="10" fill="#ede7f6" stroke="#4527a0" stroke-width="2" />
+  <text x="650" y="450" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#4527a0">Super-Resolution</text>
+  <text x="650" y="475" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Upsample to 1280×720</text>
+  <text x="650" y="500" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">PIB Seal, Color Grading</text>
+  <text x="650" y="525" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Subtitles and SRT</text>
+  
+  <!-- Quality & Compliance Module -->
+  <rect x="800" y="250" width="200" height="120" rx="10" ry="10" fill="#fce4ec" stroke="#c2185b" stroke-width="2" />
+  <text x="900" y="280" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#c2185b">Quality & Compliance</text>
+  <text x="900" y="305" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Metrics: FVD, IS</text>
+  <text x="900" y="330" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Artifact Detection</text>
+  <text x="900" y="355" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">WCAG 2.1 AA Compliance</text>
+  
+  <!-- Output Section -->
+  <rect x="800" y="420" width="200" height="100" rx="10" ry="10" fill="#e8eaf6" stroke="#3949ab" stroke-width="2" />
+  <text x="900" y="450" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#3949ab">Output</text>
+  <text x="900" y="475" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">16-30s Branded Videos</text>
+  <text x="900" y="500" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">1280×720 px Resolution</text>
+  
+  <!-- Governance & Maintenance -->
+  <rect x="300" y="590" width="450" height="100" rx="10" ry="10" fill="#f1f8e9" stroke="#558b2f" stroke-width="2" />
+  <text x="525" y="620" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#558b2f">Governance & Maintenance</text>
+  <text x="525" y="645" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Version Control, Quarterly Audits</text>
+  <text x="525" y="670" font-family="Arial" font-size="14" text-anchor="middle" fill="#333">Continuous Fine-tuning with PIB Datasets</text>
+  
+  <!-- Arrows -->
+  <!-- Input to Preprocessing -->
+  <line x1="150" y1="200" x2="150" y2="250" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Preprocessing to Fact Checking -->
+  <line x1="150" y1="370" x2="150" y2="420" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Preprocessing to Noise Decomposition -->
+  <line x1="250" y1="310" x2="300" y2="310" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Noise Decomposition to Latent Synthesis -->
+  <line x1="500" y1="310" x2="550" y2="310" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Fact Checking to Emergency Zero-Shot (conditional) -->
+  <path d="M 250 480 C 270 480 280 480 300 480" stroke="#333" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrowhead)" />
+  <text x="275" y="465" font-family="Arial" font-size="12" text-anchor="middle" fill="#333">if urgent</text>
+  
+  <!-- Latent Synthesis to Super-Resolution -->
+  <line x1="650" y1="370" x2="650" y2="420" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Emergency Zero-Shot to Super-Resolution -->
+  <line x1="500" y1="480" x2="550" y2="480" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Latent Synthesis to Quality & Compliance -->
+  <line x1="750" y1="310" x2="800" y2="310" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Super-Resolution to Quality & Compliance -->
+  <path d="M 750 480 C 775 480 775 370 800 370" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Quality & Compliance to Output -->
+  <line x1="900" y1="370" x2="900" y2="420" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- All modules to Governance & Maintenance -->
+  <path d="M 525 520 C 525 550 525 560 525 590" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)" />
+  
+  <!-- Arrowhead marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Legend -->
+  <rect x="50" y="700" width="20" height="20" fill="#e3f2fd" stroke="#1565c0" stroke-width="2" />
+  <text x="80" y="715" font-family="Arial" font-size="14" fill="#333">Input/Output</text>
+  
+  <rect x="200" y="700" width="20" height="20" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" />
+  <text x="230" y="715" font-family="Arial" font-size="14" fill="#333">Processing</text>
+  
+  <rect x="350" y="700" width="20" height="20" fill="#fff3e0" stroke="#e65100" stroke-width="2" />
+  <text x="380" y="715" font-family="Arial" font-size="14" fill="#333">Validation</text>
+  
+  <rect x="500" y="700" width="20" height="20" fill="#ffebee" stroke="#b71c1c" stroke-width="2" />
+  <text x="530" y="715" font-family="Arial" font-size="14" fill="#333">Emergency</text>
+  
+  <rect x="650" y="700" width="20" height="20" fill="#f1f8e9" stroke="#558b2f" stroke-width="2" />
+  <text x="680" y="715" font-family="Arial" font-size="14" fill="#333">Governance</text>
+  
+  <line x1="800" y1="710" x2="830" y2="710" stroke="#333" stroke-width="2" stroke-dasharray="5,5" />
+  <text x="860" y="715" font-family="Arial" font-size="14" fill="#333">Conditional</text>
+  
+  <line x1="900" y1="710" x2="930" y2="710" stroke="#333" stroke-width="2" />
+  <text x="960" y="715" font-family="Arial" font-size="14" fill="#333">Flow</text>
+</svg>

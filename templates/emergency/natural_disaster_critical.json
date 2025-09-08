@@ -1,0 +1,30 @@
+{
+  "id": "natural_disaster_critical",
+  "name": "Natural Disaster - Critical Alert",
+  "emergency_type": "NATURAL_DISASTER",
+  "priority_level": "CRITICAL",
+  "prompt_template": "URGENT ALERT: {message} TAKE IMMEDIATE ACTION. Issued at {timestamp}.",
+  "caption_template": "EMERGENCY: {message}",
+  "disclaimers": [
+    "This is an official emergency alert", 
+    "Follow all evacuation orders immediately",
+    "Stay tuned to official channels for updates"
+  ],
+  "metadata": {
+    "version": "1.0",
+    "source": "system",
+    "created_at": "2023-07-15T10:00:00Z",
+    "updated_at": "2023-07-15T10:00:00Z",
+    "accessibility": {
+      "high_contrast": true,
+      "large_text": true,
+      "screen_reader_optimized": true
+    },
+    "channels": [
+      "broadcast",
+      "mobile",
+      "social_media",
+      "emergency_broadcast_system"
+    ]
+  }
+}
