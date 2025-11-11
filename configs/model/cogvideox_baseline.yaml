@@ -1,0 +1,10 @@
+model_id: THUDM/CogVideoX-5B-I2V
+num_frames: 49
+fps: 8
+height: 480
+width: 720
+guidance_scale: 6.5
+num_inference_steps: 40
+use_fp16: true
+offload: true
+

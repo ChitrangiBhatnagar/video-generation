@@ -1,0 +1,8 @@
+name: panda70m_subset
+storage_estimate_gb: 120
+download_instructions: data/raw/panda70m/README.md
+usage: scale_experiments
+notes: >
+  Acquire access manually via official request. Suggested subset of 500 clips
+  spanning urban, transport, and crowd control scenes for press coverage demos.
+

@@ -1,0 +1,10 @@
+name: msr_vtt
+storage_estimate_gb: 29
+frame_rate_options: [2, 4, 8]
+resolution: [480, 720]
+download_script: src/data_prep/download_msr_vtt.py
+metadata_builder: src/data_prep/prepare_metadata.py
+notes: >
+  Use limit=1000 for LoRA quick runs. Ensure captions mapping is downloaded and
+  frames extracted with prepare_metadata script.
+

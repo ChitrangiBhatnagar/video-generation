@@ -1,0 +1,62 @@
+[
+  {
+    "video_path": "outputs/examples/baseline_press_conference.mp4",
+    "image_path": "data/samples/sample_image_1.png",
+    "caption": "Press conference with confident speaker at podium.",
+    "scenario": "press_conference"
+  },
+  {
+    "video_path": "outputs/examples/optimized_markets.mp4",
+    "image_path": "data/samples/sample_image_2.png",
+    "caption": "Financial analyst delivering market recap with charts on screen.",
+    "scenario": "market_report"
+  },
+  {
+    "video_path": "outputs/examples/lora_briefing.mp4",
+    "image_path": "data/samples/sample_image_3.png",
+    "caption": "Community update with reporters interviewing local organizers.",
+    "scenario": "community_story"
+  },
+  {
+    "video_path": "outputs/examples/baseline_press_conference.mp4",
+    "image_path": "data/samples/sample_image_1.png",
+    "caption": "Press conference with confident speaker at podium.",
+    "scenario": "press_conference"
+  },
+  {
+    "video_path": "outputs/examples/optimized_markets.mp4",
+    "image_path": "data/samples/sample_image_2.png",
+    "caption": "Financial analyst delivering market recap with charts on screen.",
+    "scenario": "market_report"
+  },
+  {
+    "video_path": "outputs/examples/lora_briefing.mp4",
+    "image_path": "data/samples/sample_image_3.png",
+    "caption": "Community update with reporters interviewing local organizers.",
+    "scenario": "community_story"
+  },
+  {
+    "video_path": "outputs/examples/baseline_press_conference.mp4",
+    "image_path": "data/samples/sample_image_1.png",
+    "caption": "Press conference with confident speaker at podium.",
+    "scenario": "press_conference"
+  },
+  {
+    "video_path": "outputs/examples/optimized_markets.mp4",
+    "image_path": "data/samples/sample_image_2.png",
+    "caption": "Financial analyst delivering market recap with charts on screen.",
+    "scenario": "market_report"
+  },
+  {
+    "video_path": "outputs/examples/lora_briefing.mp4",
+    "image_path": "data/samples/sample_image_3.png",
+    "caption": "Community update with reporters interviewing local organizers.",
+    "scenario": "community_story"
+  },
+  {
+    "video_path": "outputs/examples/baseline_press_conference.mp4",
+    "image_path": "data/samples/sample_image_1.png",
+    "caption": "Press conference with confident speaker at podium.",
+    "scenario": "press_conference"
+  }
+]

@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "generated_at": "2025-11-11T12:51:36.148245+00:00",
+    "model": "THUDM/CogVideoX-5B-I2V",
+    "project": "video-generation"
+  },
+  "metrics": {
+    "videos": [
+      {
+        "video_path": "outputs\\examples\\baseline_press_conference.mp4",
+        "temporal_consistency": 0.999675506913424,
+        "avg_brightness": 0.23155080284106955,
+        "duration_seconds": 6.0,
+        "fps": 8,
+        "note": "Simple frame-difference metric (fallback)."
+      },
+      {
+        "video_path": "outputs\\examples\\lora_briefing.mp4",
+        "temporal_consistency": 0.9997417780044637,
+        "avg_brightness": 0.22754571325861878,
+        "duration_seconds": 6.0,
+        "fps": 8,
+        "note": "Simple frame-difference metric (fallback)."
+      },
+      {
+        "video_path": "outputs\\examples\\optimized_markets.mp4",
+        "temporal_consistency": 0.9997829028567158,
+        "avg_brightness": 0.2809757905010641,
+        "duration_seconds": 6.0,
+        "fps": 8,
+        "note": "Simple frame-difference metric (fallback)."
+      }
+    ],
+    "avg_temporal_consistency": 0.9997333959248679
+  },
+  "datasets": {
+    "training_metadata_path": "data\\metadata\\training_metadata.json",
+    "sample_count": 10
+  },
+  "configs": [
+    {
+      "path": "configs\\model\\cogvideox_baseline.yaml",
+      "sha256": "60a7befa4f938a98e9169e3dbeb402f73c6e90dd38f06dbc5d5c347a6f06a1c5"
+    },
+    {
+      "path": "configs\\model\\optimized_inference.yaml",
+      "sha256": "8bb65455214ad4cee11ec0308e41598b1971b1294feef160bbc671b9a66a4dc0"
+    },
+    {
+      "path": "configs\\training\\lora_default.yaml",
+      "sha256": "3db004f19e7be0e5297e3ec8eb14396a06bce9bb365bd2e3b7233b32c2ce38d9"
+    },
+    {
+      "path": "configs\\training\\validation_prompts.yaml",
+      "sha256": "185813ecb9e76a98188887b7efdc13eab031afde1b4430a25b7255198ab7bcba"
+    }
+  ],
+  "artifacts": {
+    "example_videos": [
+      "outputs\\examples\\baseline_press_conference.mp4",
+      "outputs\\examples\\lora_briefing.mp4",
+      "outputs\\examples\\optimized_markets.mp4"
+    ],
+    "checkpoints": []
+  }
+}

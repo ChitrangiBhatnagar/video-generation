@@ -1,0 +1,10 @@
+name: vatex
+storage_estimate_gb: 18
+split: validation
+multilingual: true
+download_script: src/data_prep/download_vatex.py
+usage: evaluation
+notes: >
+  Enable --download-videos for qualitative checks. Captions include English and
+  Chinese descriptions for broader evaluation coverage.
+

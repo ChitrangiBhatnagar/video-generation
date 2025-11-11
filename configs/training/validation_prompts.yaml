@@ -1,0 +1,11 @@
+scenarios:
+  - name: press_briefing
+    image_path: data/samples/sample_image_1.png
+    prompt: "A government spokesperson delivering a press briefing with projection screens in the background."
+  - name: economic_forum
+    image_path: data/samples/sample_image_2.png
+    prompt: "A televised economic forum with charts animating behind the speakers."
+  - name: community_event
+    image_path: data/samples/sample_image_3.png
+    prompt: "A vibrant community market with slow camera pan across stalls and visitors."
+
