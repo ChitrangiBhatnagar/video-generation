@@ -1,0 +1,72 @@
+{
+  "train": [
+    {
+      "video_path": "outputs/examples/baseline_press_conference.mp4",
+      "image_path": "data/samples/sample_image_1.png",
+      "caption": "Press conference with confident speaker at podium.",
+      "prompt_variants": [
+        "Press conference with confident speaker at podium.",
+        "Press room camera shot capturing a press room briefing with Press conference with confident speaker at podium.",
+        "Wide shot of a press room briefing featuring Press conference with confident speaker at podium.",
+        "Close-up newsroom coverage: Press conference with confident speaker at podium."
+      ],
+      "scenario": "press_room",
+      "latent_path": "data/prepared/latents/press_room/baseline_press_conference.npz"
+    },
+    {
+      "video_path": "outputs/examples/optimized_markets.mp4",
+      "image_path": "data/samples/sample_image_2.png",
+      "caption": "Financial analyst delivering market recap with charts on screen.",
+      "prompt_variants": [
+        "Financial analyst delivering market recap with charts on screen.",
+        "Live market floor update, anchors describe: Financial analyst delivering market recap with charts on screen.",
+        "Financial briefing in studio about Financial analyst delivering market recap with charts on screen.",
+        "Economic analysts presenting charts while Financial analyst delivering market recap with charts on screen."
+      ],
+      "scenario": "market_floor",
+      "latent_path": "data/prepared/latents/market_floor/optimized_markets.npz"
+    },
+    {
+      "video_path": "outputs/examples/lora_briefing.mp4",
+      "image_path": "data/samples/sample_image_3.png",
+      "caption": "Community update with reporters interviewing local organizers.",
+      "prompt_variants": [
+        "Community update with reporters interviewing local organizers.",
+        "On-location outdoor briefing in daylight where Community update with reporters interviewing local organizers.",
+        "Field reporter delivering update: Community update with reporters interviewing local organizers.",
+        "Crowd gathered while spokesperson shares: Community update with reporters interviewing local organizers."
+      ],
+      "scenario": "outdoor_briefing",
+      "latent_path": "data/prepared/latents/outdoor_briefing/lora_briefing.npz"
+    }
+  ],
+  "validation": [
+    {
+      "video_path": "outputs/examples/baseline_press_conference.mp4",
+      "image_path": "data/samples/sample_image_1.png",
+      "caption": "Press conference with confident speaker at podium.",
+      "prompt_variants": [
+        "Press conference with confident speaker at podium.",
+        "Press room camera shot capturing a press room briefing with Press conference with confident speaker at podium.",
+        "Wide shot of a press room briefing featuring Press conference with confident speaker at podium.",
+        "Close-up newsroom coverage: Press conference with confident speaker at podium."
+      ],
+      "scenario": "press_room",
+      "latent_path": "data/prepared/latents/press_room/baseline_press_conference.npz"
+    },
+    {
+      "video_path": "outputs/examples/optimized_markets.mp4",
+      "image_path": "data/samples/sample_image_2.png",
+      "caption": "Financial analyst delivering market recap with charts on screen.",
+      "prompt_variants": [
+        "Financial analyst delivering market recap with charts on screen.",
+        "Live market floor update, anchors describe: Financial analyst delivering market recap with charts on screen.",
+        "Financial briefing in studio about Financial analyst delivering market recap with charts on screen.",
+        "Economic analysts presenting charts while Financial analyst delivering market recap with charts on screen."
+      ],
+      "scenario": "market_floor",
+      "latent_path": "data/prepared/latents/market_floor/optimized_markets.npz"
+    }
+  ]
+}
+

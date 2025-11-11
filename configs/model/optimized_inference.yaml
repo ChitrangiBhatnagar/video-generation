@@ -9,4 +9,10 @@ use_fp16: true
 vae_slicing: true
 vae_tiling: true
 offload: true
+lora_scale: 0.85
+lora_presets:
+  press_room: checkpoints/scenario_loras/press_room/adapter_final
+  market_floor: checkpoints/scenario_loras/market_floor/adapter_final
+  outdoor_briefing: checkpoints/scenario_loras/outdoor_briefing/adapter_final
+  studio_panel: checkpoints/scenario_loras/studio_panel/adapter_final
 

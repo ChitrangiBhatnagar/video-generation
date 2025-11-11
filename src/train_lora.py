@@ -29,6 +29,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+import random
+import shutil
+
 import csv
 import imageio.v3 as iio
 import numpy as np
@@ -53,6 +56,7 @@ try:
 except ImportError as exc:  # pragma: no cover
     raise ImportError("Install peft to run LoRA training.") from exc
 
+from .evaluation.clip_similarity import ClipScorerConfig, ClipSimilarityScorer, select_keyframes
 from .temporal_consistency import TemporalConsistencyEvaluator
 from .utils.logging_config import configure_logging
 from .utils.pipeline_utils import enable_offload_for_pipeline, save_video_sample
@@ -87,6 +91,17 @@ class LoraTrainingConfig:
     num_video_frames: int = 32
     frame_sampling_strategy: str = "uniform"
     metrics_path: Optional[Path] = None
+    metadata_split: str = "train"
+    scenario_filter: Optional[List[str]] = None
+    use_latent_cache: bool = True
+    cfg_dropout: float = 0.0
+    validation_prompts_path: Optional[Path] = None
+    clip_model_name: str = "openai/clip-vit-base-patch32"
+    clip_device: Optional[str] = None
+    clip_batch_size: int = 4
+    keyframes_for_clip: int = 4
+    guidance_scale_validation: float = 6.0
+    keep_top_k_adapters: int = 3
     sample_images: List[Path] = field(default_factory=lambda: [
         Path("data/samples/sample_image_1.png"),
         Path("data/samples/sample_image_2.png"),
@@ -98,6 +113,12 @@ class LoraTrainingConfig:
                 "A bustling newsroom preparing for a breaking announcement",
                 "A panel discussion on economic policy in a studio",
             ]
+        if isinstance(self.validation_prompts_path, str):
+            self.validation_prompts_path = Path(self.validation_prompts_path)
+        if self.validation_prompts_path is None:
+            default_validation = Path("configs/training/validation_prompts.yaml")
+            if default_validation.exists():
+                self.validation_prompts_path = default_validation
 
 
 class MetadataDataset(Dataset):
@@ -110,14 +131,33 @@ class MetadataDataset(Dataset):
         prompt_column: str,
         video_column: str,
         num_frames: int,
+        split: str = "train",
+        scenario_filter: Optional[Iterable[str]] = None,
+        use_latent_cache: bool = False,
     ) -> None:
         self.metadata_path = metadata_path
         with metadata_path.open("r", encoding="utf-8") as fh:
-            self.records = json.load(fh)
+            content = json.load(fh)
+        if isinstance(content, dict):
+            records: List[Dict[str, Any]] = content.get(split, [])
+        else:
+            if split != "train":
+                LOGGER.warning("Metadata file %s is flat; ignoring split '%s'.", metadata_path, split)
+            records = content
+
+        if scenario_filter:
+            scenario_set = {scenario for scenario in scenario_filter}
+            records = [record for record in records if record.get("scenario") in scenario_set]
+
+        if not records:
+            raise ValueError(f"No records found for split '{split}' in metadata {metadata_path}.")
+
+        self.records = records
         self.image_column = image_column
         self.prompt_column = prompt_column
         self.video_column = video_column
         self.num_frames = num_frames
+        self.use_latent_cache = use_latent_cache
 
     def __len__(self) -> int:
         return len(self.records)
@@ -138,13 +178,43 @@ class MetadataDataset(Dataset):
         tensor = tensor.permute(0, 3, 1, 2)  # (F, C, H, W)
         return tensor
 
+    def _load_from_cache(self, record: Dict[str, Any]) -> Optional[Dict[str, torch.Tensor]]:
+        if not self.use_latent_cache:
+            return None
+        latent_path = record.get("latent_path")
+        if not latent_path:
+            return None
+        cache_path = Path(latent_path)
+        if not cache_path.exists():
+            LOGGER.debug("Latent cache missing for %s", cache_path)
+            return None
+        with np.load(cache_path, allow_pickle=False) as cache:
+            data = cache["data"]
+            data_format = cache["data_format"].item() if "data_format" in cache else "frames"
+            if data_format == "latents":
+                tensor = torch.from_numpy(data).float()
+                if tensor.ndim == 4 and tensor.shape[0] != self.num_frames:
+                    tensor = tensor.permute(1, 0, 2, 3)  # (F, C, H, W)
+                return {"latents": tensor}
+            tensor = torch.from_numpy(data).float()  # (F, H, W, C)
+            if tensor.ndim == 4:
+                tensor = tensor.permute(0, 3, 1, 2)
+            return {"video": tensor}
+
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         record = self.records[idx]
+        prompt_candidates = record.get("prompt_variants") or [record.get(self.prompt_column, "")]
+        prompt = random.choice(prompt_candidates)
         image = Image.open(record[self.image_column]).convert("RGB")
         image_tensor = torch.from_numpy(np.array(image)).float().permute(2, 0, 1) / 255.0
-        video_frames = self._load_video_frames(Path(record[self.video_column]))
-        prompt = record[self.prompt_column]
-        return {"video": video_frames, "conditioning_image": image_tensor, "prompt": prompt}
+
+        cache = self._load_from_cache(record)
+        if cache is None:
+            video_frames = self._load_video_frames(Path(record[self.video_column]))
+            cache = {"video": video_frames}
+
+        cache.update({"conditioning_image": image_tensor, "prompt": prompt, "scenario": record.get("scenario", "")})
+        return cache
 
 
 def read_config(config_path: Optional[Path]) -> Dict[str, Any]:
@@ -152,6 +222,88 @@ def read_config(config_path: Optional[Path]) -> Dict[str, Any]:
         return {}
     with config_path.open("r", encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+def load_validation_items(config: LoraTrainingConfig) -> List[Tuple[str, Path]]:
+    items: List[Tuple[str, Path]] = []
+    if config.validation_prompts_path and config.validation_prompts_path.exists():
+        with config.validation_prompts_path.open("r", encoding="utf-8") as fh:
+            payload = yaml.safe_load(fh) or {}
+        for entry in payload.get("scenarios", []):
+            prompt = entry.get("prompt")
+            image_path = entry.get("image_path")
+            if not prompt or not image_path:
+                continue
+            items.append((prompt, Path(image_path)))
+    if not items:
+        items = list(zip(config.sample_prompts, config.sample_images))
+    return items
+
+
+def prune_adapters(output_dir: Path, keep_top_k: int) -> None:
+    if keep_top_k <= 0:
+        return
+    metrics_log = output_dir / "validation_metrics.jsonl"
+    if not metrics_log.exists():
+        LOGGER.info("No validation metrics log found at %s; skipping adapter pruning.", metrics_log)
+        return
+    epoch_scores: Dict[int, Dict[str, List[float]]] = {}
+    with metrics_log.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            epoch = record.get("epoch")
+            if epoch is None:
+                continue
+            entry = epoch_scores.setdefault(int(epoch), {"temporal": [], "clip": []})
+            temporal_score = record.get("temporal_score")
+            clip_score = record.get("clip_score")
+            if temporal_score is not None:
+                entry["temporal"].append(float(temporal_score))
+            if clip_score is not None:
+                entry["clip"].append(float(clip_score))
+
+    if not epoch_scores:
+        LOGGER.info("No epoch metrics available; skipping adapter pruning.")
+        return
+
+    aggregates: List[Dict[str, float | int]] = []
+    for epoch, values in epoch_scores.items():
+        temporal_avg = float(np.mean(values["temporal"])) if values["temporal"] else 0.0
+        clip_avg = float(np.mean(values["clip"])) if values["clip"] else 0.0
+        combined = temporal_avg + clip_avg
+        aggregates.append(
+            {
+                "epoch": epoch,
+                "temporal_avg": temporal_avg,
+                "clip_avg": clip_avg,
+                "combined": combined,
+            }
+        )
+
+    aggregates.sort(key=lambda item: item["combined"], reverse=True)
+    keep = {entry["epoch"] for entry in aggregates[:keep_top_k]}
+    prune_candidates = aggregates[keep_top_k:]
+    if not prune_candidates:
+        LOGGER.info("All adapters retained (%d <= keep_top_k=%d).", len(aggregates), keep_top_k)
+        return
+
+    prune_dir = output_dir / "pruned"
+    prune_dir.mkdir(parents=True, exist_ok=True)
+    for entry in prune_candidates:
+        epoch = int(entry["epoch"])
+        adapter_dir = output_dir / f"adapter_epoch_{epoch}"
+        if adapter_dir.exists():
+            target = prune_dir / adapter_dir.name
+            shutil.move(str(adapter_dir), target)
+            LOGGER.info(
+                "Pruned adapter_epoch_%d (combined %.3f -> moved to %s)",
+                epoch,
+                entry["combined"],
+                target,
+            )
 
 
 def apply_lora_adapters(
@@ -183,10 +335,21 @@ def apply_lora_adapters(
 
 
 def collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
-    videos = torch.stack([item["video"] for item in batch])
+    result: Dict[str, Any] = {}
+    videos = [item["video"] for item in batch if "video" in item]
+    latents = [item["latents"] for item in batch if "latents" in item]
     conditioning_images = torch.stack([item["conditioning_image"] for item in batch])
     prompts = [item["prompt"] for item in batch]
-    return {"videos": videos, "conditioning_images": conditioning_images, "prompts": prompts}
+    scenarios = [item.get("scenario", "") for item in batch]
+
+    if videos:
+        result["videos"] = torch.stack(videos)
+    if latents:
+        result["latents"] = torch.stack(latents)
+    result["conditioning_images"] = conditioning_images
+    result["prompts"] = prompts
+    result["scenarios"] = scenarios
+    return result
 
 
 def train_lora(
@@ -223,6 +386,9 @@ def train_lora(
         prompt_column=config.prompt_column,
         video_column="video_path",
         num_frames=config.num_video_frames,
+        split=config.metadata_split,
+        scenario_filter=config.scenario_filter,
+        use_latent_cache=config.use_latent_cache,
     )
     dataloader = DataLoader(
         dataset,
@@ -240,6 +406,16 @@ def train_lora(
     pipeline.to(accelerator.device)
     enable_offload_for_pipeline(pipeline)
     lora_params = apply_lora_adapters(pipeline, config)
+
+    validation_items = load_validation_items(config)
+    clip_scorer: Optional[ClipSimilarityScorer] = None
+    if accelerator.is_main_process and config.clip_model_name:
+        clip_config = ClipScorerConfig(
+            model_name=config.clip_model_name,
+            device=config.clip_device,
+            batch_size=config.clip_batch_size,
+        )
+        clip_scorer = ClipSimilarityScorer(clip_config)
 
     optimizer = torch.optim.AdamW(
         lora_params,
@@ -306,8 +482,17 @@ def train_lora(
         progress_bar = tqdm(enumerate(dataloader), total=len(dataloader), disable=not accelerator.is_main_process, desc=f"Epoch {epoch + 1}")
         for step, batch in progress_bar:
             with accelerator.accumulate(pipeline.unet):
-                videos = batch["videos"]
-                latents = encode_videos(videos)
+                latents: torch.Tensor
+                if "videos" in batch:
+                    videos = batch["videos"]
+                    latents = encode_videos(videos)
+                elif "latents" in batch:
+                    latents = batch["latents"].to(device=accelerator.device, dtype=pipeline.vae.dtype)
+                    if latents.ndim == 5:
+                        latents = latents.permute(0, 2, 1, 3, 4)  # (B, C, F, H, W)
+                else:
+                    raise ValueError("Batch is missing both 'videos' and 'latents' tensors.")
+
                 noise = torch.randn_like(latents)
                 timesteps = torch.randint(
                     0,
@@ -318,7 +503,11 @@ def train_lora(
                 )
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-                encoder_hidden_states = encode_prompts(batch["prompts"])
+                prompts = batch["prompts"]
+                if config.cfg_dropout > 0.0:
+                    mask = torch.rand(len(prompts)) < config.cfg_dropout
+                    prompts = [" " if drop else prompt for prompt, drop in zip(prompts, mask)]
+                encoder_hidden_states = encode_prompts(prompts)
                 conditioning_latents = encode_conditioning_images(batch["conditioning_images"], latents.shape[2]).to(latents.dtype)
                 added_cond_kwargs = {"image_latents": conditioning_latents}
 
@@ -365,7 +554,14 @@ def train_lora(
                 break
 
         if accelerator.is_main_process and (epoch + 1) % config.validation_every_n_epochs == 0:
-            validate_and_sample(pipeline, output_dir, epoch + 1, config)
+            validate_and_sample(
+                pipeline,
+                output_dir,
+                epoch + 1,
+                config,
+                validation_items,
+                clip_scorer=clip_scorer,
+            )
 
         if accelerator.is_main_process:
             epoch_path = output_dir / f"adapter_epoch_{epoch + 1}"
@@ -380,6 +576,7 @@ def train_lora(
         final_path = output_dir / "adapter_final"
         pipeline.unet.save_attn_procs(final_path)
         LOGGER.info("Training complete. Final adapter saved to %s", final_path)
+        prune_adapters(output_dir, config.keep_top_k_adapters)
 
 
 def validate_and_sample(
@@ -387,6 +584,8 @@ def validate_and_sample(
     output_dir: Path,
     epoch: int,
     config: LoraTrainingConfig,
+    validation_items: List[Tuple[str, Path]],
+    clip_scorer: Optional[ClipSimilarityScorer] = None,
 ) -> None:
     pipeline.unet.eval()
     evaluator = TemporalConsistencyEvaluator()
@@ -396,17 +595,17 @@ def validate_and_sample(
     dtype = torch.float16 if config.fp16 else torch.bfloat16
     examples_dir = Path("outputs/examples")
     examples_dir.mkdir(parents=True, exist_ok=True)
+    metrics_log_path = output_dir / "validation_metrics.jsonl"
 
-    for idx, prompt in enumerate(config.sample_prompts):
+    for idx, (prompt, image_path) in enumerate(validation_items):
         output_path = output_dir / f"sample_epoch_{epoch}_{idx}.mp4"
-        image_path = config.sample_images[idx % len(config.sample_images)]
         conditioning_image = Image.open(image_path).convert("RGB")
         with torch.autocast(device_type=device.type, dtype=dtype):
             result = pipeline(
                 prompt=prompt,
                 image=conditioning_image,
                 num_frames=config.num_video_frames,
-                guidance_scale=6.0,
+                guidance_scale=config.guidance_scale_validation,
                 num_inference_steps=30,
             )
         frames = result.frames[0] if hasattr(result, "frames") else result.videos[0]  # type: ignore[attr-defined]
@@ -415,12 +614,31 @@ def validate_and_sample(
         if example_copy != output_path:
             example_copy.write_bytes(output_path.read_bytes())
         score = evaluator.score_tensor_video(frames)
+        clip_score: Optional[float] = None
+        if clip_scorer:
+            try:
+                frame_tensor = torch.from_numpy(frames).float().permute(0, 3, 1, 2) / 255.0
+                keyframes = select_keyframes(frame_tensor.unsqueeze(0), config.keyframes_for_clip)
+                clip_score = clip_scorer.score(keyframes, prompt)
+            except Exception as exc:  # pragma: no cover - best effort metric
+                LOGGER.warning("CLIP scoring failed for prompt '%s': %s", prompt, exc)
         LOGGER.info(
-            "Validation prompt '%s' | temporal=%.3f | sample=%s",
+            "Validation prompt '%s' | temporal=%.3f | clip=%s | sample=%s",
             prompt,
             score,
+            f"{clip_score:.3f}" if clip_score is not None else "n/a",
             output_path,
         )
+        record = {
+            "epoch": epoch,
+            "prompt": prompt,
+            "output_path": str(output_path),
+            "reference_image": str(image_path),
+            "temporal_score": float(score),
+            "clip_score": float(clip_score) if clip_score is not None else None,
+        }
+        with metrics_log_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
 
 
 def parse_args() -> argparse.Namespace:

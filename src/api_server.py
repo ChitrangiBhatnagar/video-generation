@@ -25,9 +25,9 @@ from __future__ import annotations
 import io
 import logging
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -36,7 +36,10 @@ from .baseline_inference import BaselineInferenceConfig, generate_video as basel
 from .optimized_inference import (
     OptimizedInferenceConfig,
     benchmark_generation as optimized_generate,
+    build_config,
+    load_config_from_file,
     load_pipeline as load_optimized,
+    resolve_lora_path,
 )
 from .temporal_consistency import TemporalConsistencyEvaluator
 from .utils.logging_config import configure_logging
@@ -48,9 +51,12 @@ configure_logging()
 
 @dataclass
 class ServerState:
-    baseline_pipeline = None
-    optimized_pipeline = None
-    evaluator = TemporalConsistencyEvaluator()
+    baseline_pipeline: Any = None
+    optimized_pipeline: Any = None
+    evaluator: TemporalConsistencyEvaluator = field(default_factory=TemporalConsistencyEvaluator)
+    optimized_config: OptimizedInferenceConfig = field(
+        default_factory=lambda: build_config(load_config_from_file(None))
+    )
 
 
 state = ServerState()
@@ -65,7 +71,7 @@ def get_baseline_pipeline() -> any:
 
 def get_optimized_pipeline() -> any:
     if state.optimized_pipeline is None:
-        state.optimized_pipeline = load_optimized(OptimizedInferenceConfig())
+        state.optimized_pipeline = load_optimized(state.optimized_config)
     return state.optimized_pipeline
 
 
@@ -91,6 +97,9 @@ async def generate_video(
     mode: str = Form("optimized"),
     guidance_scale: Optional[float] = Form(None),
     num_inference_steps: Optional[int] = Form(None),
+    scenario: Optional[str] = Form(None),
+    lora_scale: Optional[float] = Form(None),
+    lora_path: Optional[str] = Form(None),
 ) -> JSONResponse:
     if duration_seconds not in (6, 8, 10):
         raise HTTPException(status_code=400, detail="Supported durations: 6, 8, 10 seconds.")
@@ -115,19 +124,32 @@ async def generate_video(
                 prompt=prompt,
             )
         else:
-            config = OptimizedInferenceConfig()
+            config = replace(state.optimized_config)
             if guidance_scale:
                 config.guidance_scale = guidance_scale
             if num_inference_steps:
                 config.num_inference_steps = num_inference_steps
             config.num_frames = int(duration_seconds * config.fps)
+            if lora_scale is not None:
+                config.lora_scale = lora_scale
             pipeline = get_optimized_pipeline()
+            lora_override = Path(lora_path) if lora_path else None
+            try:
+                resolved_lora = resolve_lora_path(
+                    config=config,
+                    scenario=scenario,
+                    explicit_path=lora_override,
+                    disable_lora=False,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
             output_path = optimized_generate(
                 pipeline=pipeline,
                 config=config,
                 input_image=temp_path,
                 prompt=prompt,
-                lora_path=None,
+                lora_path=resolved_lora,
+                lora_scale=lora_scale,
             )
     except Exception as exc:  # pragma: no cover
         LOGGER.exception("Generation failed: %s", exc)

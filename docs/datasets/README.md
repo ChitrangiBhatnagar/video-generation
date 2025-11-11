@@ -1,11 +1,12 @@
 ## Dataset Preparation
 
 ### MSR-VTT (Primary Training Set)
-- **Download**: `python -m src.data_prep.download_msr_vtt --output-dir data/raw/msr-vtt --limit 500`
+- **Download**: `python -m src.data_prep.download_msr_vtt --output-dir data/raw/msr-vtt --limit 1500`
 - **Contents**: Annotations (`MSRVTT_data.json`), videos (`train-video/*.mp4`), generated manifest.
-- **Prep Metadata**: `python -m src.data_prep.prepare_metadata --msr-vtt data/raw/msr-vtt --output data/metadata/training_metadata.json --limit 1500`
-- **Storage**: ~29 GB for full dataset; quickstart limit trims to <5 GB.
-- **Usage**: Provide `video_path`, `image_path` (first frame), `caption`, `scenario` fields for LoRA training.
+- **Scenario Metadata**: `python -m src.data_prep.build_scenario_metadata --msr-vtt data/raw/msr-vtt --scenarios configs/data/scenarios.yaml --output data/metadata/scenario_metadata.json --limit 1500 --validation-ratio 0.1`
+- **Latent Preprocessing**: `python -m src.data_prep.preprocess_video_latents --metadata data/metadata/scenario_metadata.json --split train --output-dir data/prepared/latents --fps 8 --size 720x480 --augment --encode-latents`
+- **Storage**: ~29 GB for full dataset; curated scenario subset stays <6 GB + latent cache.
+- **Usage**: Metadata now supplies prompt variants, scenario labels, and cached latent paths for LoRA training.
 
 ### VATEX (Evaluation)
 - **Download**: `python -m src.data_prep.download_vatex --output-dir data/raw/vatex --split validation --limit 50 --download-videos`
@@ -23,17 +24,23 @@
   "video_path": "data/raw/msr-vtt/videos/video0.mp4",
   "image_path": "data/raw/msr-vtt/frames/video0.png",
   "caption": "A presenter discussing the latest headlines.",
-  "scenario": "press_conference"
+  "prompt_variants": [
+    "A presenter discussing the latest headlines.",
+    "Press room camera shot capturing a press room briefing with A presenter discussing the latest headlines."
+  ],
+  "scenario": "press_room",
+  "latent_path": "data/prepared/latents/press_room/video0.npz"
 }
 ```
 
 ### Storage & Time Estimates
 - Frame extraction (1k samples @ 720×480, 8 fps): ~45 minutes on quad-core CPU.
-- Metadata build for 1.5k samples: ~5 minutes.
-- Ensure `data/prepared` volume has ≥50 GB free to accommodate frames and cached tensors.
+- Scenario metadata for 1.5k samples: ~6 minutes on 8-core CPU.
+- Latent preprocessing (8 fps, 720×480, encode latents): ~40 minutes on single GPU.
+- Ensure `data/prepared` volume has ≥60 GB free to accommodate frames and cached tensors.
 
 ### Tips
 - Cache Hugging Face downloads by exporting `HF_HOME=/data/hf-cache`.
 - Maintain consistent frame rate (8 fps) to align with LoRA training config.
-- Inspect metadata with `head data/metadata/training_metadata.json` before launching training.
+- Inspect metadata with `jq '.train[0]' data/metadata/scenario_metadata.json` before launching training.
 

@@ -26,14 +26,16 @@
 ### Quick Commands
 - Baseline clip:  
   `python -m src.baseline_inference --input-image data/samples/sample_image_1.png --prompt "Press briefing at city hall" --output-path outputs/examples/baseline_cityhall.mp4`
-- Optimized clip w/ LoRA:  
-  `python -m src.optimized_inference --input-image data/samples/sample_image_2.png --prompt "Market commentary on breaking news" --lora checkpoints/lora_press/adapter_final`
+- Optimized clip w/ scenario preset:  
+  `python -m src.optimized_inference --input-image data/samples/sample_image_2.png --prompt "Market commentary on breaking news" --scenario market_floor --lora-scale 0.85`
 - Batch run:  
   `python -m src.batch_processor --jobs-file data/metadata/batch_jobs.json --mode optimized --output-dir outputs/batch_runs`
-- Train LoRA:  
-  `accelerate launch src/train_lora.py --metadata data/metadata/training_metadata.json --output-dir checkpoints/lora_press --config configs/training/lora_default.yaml`
+- Train unified LoRA:  
+  `accelerate launch src/train_lora.py --metadata data/metadata/scenario_metadata.json --output-dir checkpoints/lora_unified --config configs/training/lora_default.yaml`
+- Train scenario-specific LoRAs:  
+  `accelerate launch src/train_scenario_lora.py --metadata data/metadata/scenario_metadata.json --output-root checkpoints/scenario_loras --config configs/training/lora_default.yaml`
 - Validate adapters:  
-  `python -m src.validation.validate_lora --lora checkpoints/lora_press/adapter_final --scenarios configs/training/validation_prompts.yaml`
+  `python -m src.validation.validate_lora --lora checkpoints/lora_unified/adapter_final --scenarios configs/training/validation_prompts.yaml`
 - Serve API:  
   `uvicorn src.api_server:app --host 0.0.0.0 --port 8000`
 
@@ -50,14 +52,15 @@
 - Metric integrated into baseline, optimized inference, validation, metrics logging, and API responses.
 
 ### LoRA Training Highlights
-- Dataset loader ingests `video_path`, `image_path`, prompt metadata; encodes videos via CogVideoX VAE.
-- Conditioning images encoded to latent space and provided as added UNet context.
-- LoRA adapters attached to attention modules with <10 % trainable params; gradient checkpointing + bf16 accelerate support.
-- Metrics logged via Accelerate, optional CSV in `outputs/metrics.csv`; sample MP4s stored per epoch.
+- Scenario-aware metadata loader supports train/validation splits, prompt variants, and latent caches.
+- Conditioning images encoded to latent space and provided as added UNet context with optional classifier-free guidance dropout.
+- LoRA adapters attach to attention processors (rank 64/alpha 128) with gradient checkpointing, bf16, and cached VAE latents.
+- Validation loop logs temporal consistency + CLIP scores, writes JSONL metrics, and prunes to top-performing adapters automatically.
 
 ### Dataset Preparation
-- `python -m src.data_prep.download_msr_vtt --output-dir data/raw/msr-vtt --limit 50`
-- `python -m src.data_prep.prepare_metadata --msr-vtt data/raw/msr-vtt --output data/metadata/training_metadata.json --limit 1500`
+- `python -m src.data_prep.download_msr_vtt --output-dir data/raw/msr-vtt --limit 1500`
+- `python -m src.data_prep.build_scenario_metadata --msr-vtt data/raw/msr-vtt --scenarios configs/data/scenarios.yaml --output data/metadata/scenario_metadata.json --limit 1500 --validation-ratio 0.1`
+- `python -m src.data_prep.preprocess_video_latents --metadata data/metadata/scenario_metadata.json --split train --output-dir data/prepared/latents --fps 8 --size 720x480 --augment --encode-latents`
 - Optional evaluation slices: VATEX (`download_vatex.py`), Panda-70M guidance.
 - See detailed instructions under `docs/datasets/README.md`.
 
@@ -69,7 +72,7 @@
 
 ### API Endpoints
 - `GET /health` returns pipeline status, model metadata.
-- `POST /generate-video` (multipart) => MP4 path + temporal score; mode `baseline|optimized`, optional LoRA path, inference overrides.
+- `POST /generate-video` (multipart) accepts scenario presets (`scenario`), LoRA scaling (`lora_scale`), and custom adapter paths in addition to baseline/optimized selection.
 - Artifact download: `GET /artifacts/{filename}` streaming MP4 from `outputs/examples`.
 - See `docs/api/README.md` for payloads, expected responses, error codes.
 

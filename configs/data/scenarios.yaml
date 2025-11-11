@@ -1,0 +1,58 @@
+press_room:
+  keywords:
+    - press
+    - podium
+    - briefing
+    - announcement
+    - reporters
+  prompt_templates:
+    - "{caption}"
+    - "Press room camera shot capturing a {scenario} with {caption}"
+    - "Wide shot of a {scenario} featuring {caption}"
+    - "Close-up newsroom coverage: {caption}"
+  min_examples: 800
+
+market_floor:
+  keywords:
+    - market
+    - stock
+    - trading
+    - financial
+    - analyst
+  prompt_templates:
+    - "{caption}"
+    - "Live market floor update, anchors describe: {caption}"
+    - "Financial briefing in studio about {caption}"
+    - "Economic analysts presenting charts while {caption}"
+  min_examples: 800
+
+outdoor_briefing:
+  keywords:
+    - outdoor
+    - field
+    - community
+    - update
+    - briefing
+    - reporters
+  prompt_templates:
+    - "{caption}"
+    - "On-location {scenario} in daylight where {caption}"
+    - "Field reporter delivering update: {caption}"
+    - "Crowd gathered while spokesperson shares: {caption}"
+  min_examples: 500
+
+studio_panel:
+  keywords:
+    - panel
+    - studio
+    - discussion
+    - debate
+    - experts
+  prompt_templates:
+    - "{caption}"
+    - "Studio panel conversation: {caption}"
+    - "TV studio with experts debating: {caption}"
+    - "Roundtable discussion on-air covering: {caption}"
+  min_examples: 500
+
+

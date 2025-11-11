@@ -28,7 +28,10 @@
     - `duration_seconds`: 6 (default), 8, or 10.
     - `mode`: `"optimized"` (default) or `"baseline"`.
     - Optional overrides: `guidance_scale`, `num_inference_steps`.
-    - Optional `lora` path is read from server configuration rather than request (future enhancement).
+    - Scenario-aware options (optimized mode):
+      - `scenario`: key present in `configs/model/optimized_inference.yaml::lora_presets`.
+      - `lora_scale`: float (0.0–1.5) to dial LoRA strength; `0` effectively disables adapter influence.
+      - `lora_path`: absolute/relative adapter directory to override presets.
   - Success response:
     ```json
     {
@@ -49,14 +52,17 @@
 ### Usage Notes
 - Default runtime enables CPU offload and FP16 for VRAM safety.
 - Temporal consistency is computed via optical-flow metric (`TemporalConsistencyEvaluator`).
+- Scenario presets and LoRA scaling leverage `configs/model/optimized_inference.yaml`; update the file for new adapters.
 - Extendable: replace LoRA path handling or add API key checks by customizing `ServerState` and FastAPI dependencies.
 
 ### Example Curl
 ```bash
 curl -X POST "http://localhost:8000/generate-video" \
-  -F "image=@data/samples/sample_image_1.png" \
-  -F "prompt=Breaking news update in studio" \
+  -F "image=@data/samples/sample_image_2.png" \
+  -F "prompt=Anchor delivering a market wrap from the trading floor" \
   -F "duration_seconds=6" \
-  -F "mode=optimized"
+  -F "mode=optimized" \
+  -F "scenario=market_floor" \
+  -F "lora_scale=0.85"
 ```
 

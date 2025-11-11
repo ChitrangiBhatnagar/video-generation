@@ -27,9 +27,10 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
+import yaml
 
 try:
     from diffusers import (
@@ -51,11 +52,13 @@ from .utils.logging_config import configure_logging
 from .utils.pipeline_utils import (
     enable_offload_for_pipeline,
     load_lora_into_pipeline,
+    set_lora_scale,
 )
 from .utils.seed_utils import seed_everything
 
 
 LOGGER = logging.getLogger(__name__)
+DEFAULT_CONFIG_PATH = Path("configs/model/optimized_inference.yaml")
 
 
 @dataclass
@@ -75,9 +78,33 @@ class OptimizedInferenceConfig:
     use_fp16: bool = True
     offload: bool = True
     output_dir: Path = field(default_factory=lambda: Path("outputs/examples"))
+    lora_scale: float = 1.0
+    lora_presets: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        self.output_dir = Path(self.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+
+def load_config_from_file(config_path: Optional[Path]) -> Dict[str, object]:
+    if not config_path:
+        config_path = DEFAULT_CONFIG_PATH
+    if not config_path.exists():
+        LOGGER.warning("Config file %s not found; using defaults.", config_path)
+        return {}
+    with config_path.open("r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    return data
+
+
+def build_config(overrides: Optional[Dict[str, object]] = None) -> OptimizedInferenceConfig:
+    overrides = overrides or {}
+    kwargs = dict(overrides)
+    if "output_dir" in kwargs:
+        kwargs["output_dir"] = Path(kwargs["output_dir"])
+    if "lora_presets" in kwargs and kwargs["lora_presets"] is None:
+        kwargs["lora_presets"] = {}
+    return OptimizedInferenceConfig(**kwargs)
 
 
 def load_pipeline(config: OptimizedInferenceConfig) -> CogVideoXImageToVideoPipeline:
@@ -108,10 +135,16 @@ def benchmark_generation(
     prompt: str,
     lora_path: Optional[Path] = None,
     output_path: Optional[Path] = None,
+    lora_scale: Optional[float] = None,
 ) -> Path:
     seed_everything(config.seed)
+    lora_scale = lora_scale if lora_scale is not None else config.lora_scale
     if lora_path:
-        load_lora_into_pipeline(pipeline, lora_path)
+        load_lora_into_pipeline(pipeline, lora_path, scale=lora_scale)
+        LOGGER.info("Applied LoRA adapter %s with scale %.2f", lora_path, lora_scale)
+    else:
+        set_lora_scale(pipeline, lora_scale)
+        LOGGER.info("Running with existing LoRA scale %.2f (path unchanged).", lora_scale)
 
     conditioning_image = load_image(str(input_image))
     output_path = output_path or config.output_dir / "optimized_output.mp4"
@@ -132,7 +165,7 @@ def benchmark_generation(
     export_to_video(frames, str(output_path), fps=config.fps)
 
     vram = torch.cuda.max_memory_allocated() / (1024**3) if torch.cuda.is_available() else 0.0
-    throughput = 3600.0 / total_time
+    throughput = 3600.0 / total_time if total_time > 0 else float("inf")
     LOGGER.info(
         "Optimized inference completed in %.2fs (VRAM %.2f GB, throughput %.1f videos/hour)",
         total_time,
@@ -147,21 +180,54 @@ def benchmark_generation(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Optimized CogVideoX inference runner.")
+    parser.add_argument("--config", type=Path, help="Optional YAML config path.")
     parser.add_argument("--input-image", type=Path, required=True)
     parser.add_argument("--prompt", type=str, required=True)
-    parser.add_argument("--lora", type=Path, help="Optional LoRA adapter directory to load.")
+    parser.add_argument("--scenario", type=str, help="Scenario preset key defined in config lora_presets.")
+    parser.add_argument("--lora", type=Path, help="Override LoRA adapter directory.")
+    parser.add_argument("--disable-lora", action="store_true", help="Force disable LoRA even if scenario preset exists.")
+    parser.add_argument("--lora-scale", type=float, help="Override LoRA scaling factor.")
     parser.add_argument("--output-path", type=Path, help="Target video output path.")
     parser.add_argument("--num-inference-steps", type=int, default=None)
     parser.add_argument("--guidance-scale", type=float, default=None)
     parser.add_argument("--num-frames", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--list-scenarios", action="store_true", help="List available scenario presets and exit.")
     return parser.parse_args()
+
+
+def resolve_lora_path(
+    config: OptimizedInferenceConfig,
+    scenario: Optional[str],
+    explicit_path: Optional[Path],
+    disable_lora: bool,
+) -> Optional[Path]:
+    if disable_lora:
+        return None
+    if explicit_path:
+        return explicit_path
+    if scenario:
+        preset = config.lora_presets.get(scenario)
+        if not preset:
+            raise ValueError(f"Scenario '{scenario}' not found in config lora_presets.")
+        return Path(preset)
+    return None
 
 
 def main() -> None:
     configure_logging(log_level=os.environ.get("LOG_LEVEL", "INFO"))
     args = parse_args()
-    config = OptimizedInferenceConfig()
+    config_overrides = load_config_from_file(args.config)
+    config = build_config(config_overrides)
+
+    if args.list_scenarios:
+        if config.lora_presets:
+            for key, value in sorted(config.lora_presets.items()):
+                print(f"{key}: {value}")
+        else:
+            print("No scenario presets defined.")
+        return
+
     if args.num_inference_steps:
         config.num_inference_steps = args.num_inference_steps
     if args.guidance_scale:
@@ -170,6 +236,15 @@ def main() -> None:
         config.num_frames = args.num_frames
     if args.seed is not None:
         config.seed = args.seed
+    if args.lora_scale is not None:
+        config.lora_scale = args.lora_scale
+
+    lora_path = resolve_lora_path(
+        config=config,
+        scenario=args.scenario,
+        explicit_path=args.lora,
+        disable_lora=args.disable_lora,
+    )
 
     pipeline = load_pipeline(config)
     benchmark_generation(
@@ -177,8 +252,9 @@ def main() -> None:
         config=config,
         input_image=args.input_image,
         prompt=args.prompt,
-        lora_path=args.lora,
+        lora_path=lora_path,
         output_path=args.output_path,
+        lora_scale=args.lora_scale,
     )
 
 

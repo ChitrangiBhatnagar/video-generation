@@ -27,9 +27,21 @@ def enable_offload_for_pipeline(pipeline: CogVideoXImageToVideoPipeline) -> None
         LOGGER.info("Enabled sequential CPU offload.")
 
 
-def load_lora_into_pipeline(pipeline: CogVideoXImageToVideoPipeline, lora_path: Path) -> None:
-    LOGGER.info("Loading LoRA adapter from %s", lora_path)
+def load_lora_into_pipeline(
+    pipeline: CogVideoXImageToVideoPipeline,
+    lora_path: Path,
+    scale: float = 1.0,
+) -> None:
+    LOGGER.info("Loading LoRA adapter from %s (scale=%.2f)", lora_path, scale)
     pipeline.unet.load_attn_procs(lora_path)
+    set_lora_scale(pipeline, scale)
+
+
+def set_lora_scale(pipeline: CogVideoXImageToVideoPipeline, scale: float) -> None:
+    for name, processor in pipeline.unet.attn_processors.items():
+        if hasattr(processor, "scale"):
+            setattr(processor, "scale", scale)
+            LOGGER.debug("Adjusted LoRA scale=%.2f for processor %s", scale, name)
 
 
 def save_video_sample(frames: torch.Tensor, output_path: Path, fps: int) -> None:
