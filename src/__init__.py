@@ -14,5 +14,6 @@ __all__ = [
     "batch_processor",
     "api_server",
     "metrics",
+    "models_lab_client",
 ]
 

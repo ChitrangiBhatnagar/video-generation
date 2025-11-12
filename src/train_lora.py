@@ -163,7 +163,7 @@ class MetadataDataset(Dataset):
         return len(self.records)
 
     def _load_video_frames(self, video_path: Path) -> torch.Tensor:
-        frames = iio.imread(video_path, index=range(0, None))
+        frames = iio.imread(video_path)
         if frames.ndim == 3:
             frames = frames[None, ...]
 
